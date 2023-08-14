@@ -2,11 +2,11 @@
 
 Welcome to this repository. It houses material and reproducible codes that were used report documenting the adoption of agricultural innovations in Vietnam during the year 2022. The report is based on data collected by the [General Statistics Office](https://www.gso.gov.vn/en/homepage/) from the Vietnam Household Living Standards Survey (VHLSS) 2022 and provides insights into the adoption patterns of various agricultural innovations across the country, including rice traits identified using molecular markers, sustainable intensification practices and climate change adaptation options.
 
-The report analysis can be reproduced by downloading the [analysis directory](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/) on a local machine and running the R scripts.
+The report results can be reproduced by downloading the [analysis directory](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis) on a local machine and running the R scripts.
 
 # Repository Contents
 
-1.	Agricultural Innovations Stocktake: The [Vietnam_Stocktake](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/VN_Stocktake.xlsx) file documents the 79 agricultural innovations identified in Vietnam in 2000-2021. This stocktake provides a comprehensive overview of the innovations, aiding researchers and policymakers in understanding the innovation landscape. Innovations highlighted in grey (n=19) are believed to be adopted at scale, and thus were the subject of data collection efforts. You can find the glossary of key terms and references used in the stocktake on additional sheets of the document.
+1.	Agricultural Innovations Stocktake: The [Vietnam Stocktake](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/VN_Stocktake.xlsx) file documents the 79 agricultural innovations identified in Vietnam in 2000-2021. This stocktake provides a comprehensive overview of the innovations, aiding researchers and policymakers in understanding the innovation landscape. Innovations highlighted in grey (n=19) are believed to be adopted at scale, and thus were the subject of data collection efforts. You can find the glossary of key terms and references used in the stocktake on additional sheets of the document.
    
 2. Training material (VHLSS 2022): SPIA’s presentation during VHLSS 2022 training of enumerators is named [VHLSS_22_training (VN)](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/training/VHLSS_22_training_(VN).pdf). A video that demonstrates the technique used for rice leaf sampling (VHLSS 2022) is available upon request in English and Vietnamese. It was shown during VHLSS enumerator training and made available to enumerators.
    
