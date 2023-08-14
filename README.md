@@ -1,6 +1,6 @@
 # Preliminary Insights into the Adoption of Agricultural Innovations in Vietnam - Report Repository
 
-Welcome to this repository. It houses material and reproducible codes that were used report documenting the adoption of agricultural innovations in Vietnam during the year 2022. The report is based on data collected by the [General Statistics Office](https://www.gso.gov.vn/en/homepage/) from the Vietnam Household Living Standards Survey (VHLSS) 2022 and provides insights into the adoption patterns of various agricultural innovations across the country, including rice traits identified using molecular markers, sustainable intensification practices and climate change adaptation options.
+Welcome to this repository. It houses material and reproducible codes that were used in the CGIAR SPIA report documenting the adoption of agricultural innovations in Vietnam during the year 2022. The report is based on data collected by the [General Statistics Office](https://www.gso.gov.vn/en/homepage/) from the Vietnam Household Living Standards Survey (VHLSS) 2022 and provides insights into the adoption patterns of various agricultural innovations across the country, including rice traits identified using molecular markers, sustainable intensification practices and climate change adaptation options.
 
 The report results can be reproduced by downloading the [analysis directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/analysis) to your local machine and running the R scripts.
 
@@ -35,13 +35,13 @@ To make the most of this repository, consider the following steps:
  
 1.	Understand Innovations: Study the [Vietnam_Stocktake](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/VN_Stocktake.xlsx) file for a comprehensive understanding of the 79 agricultural innovations identified in Vietnam.
 
-2.	Explore the Report: The [report]() provides insights into the adoption patterns of various agricultural innovations across the country, including rice traits identified using molecular markers, sustainable intensification practices and climate change adaptation options.
+2.	Explore the Report: The [UPCOMING report]() provides insights into the adoption patterns of various agricultural innovations across the country, including rice traits identified using molecular markers, sustainable intensification practices and climate change adaptation options.
    
 3.	Learn from Pilot Testing: Explore the Pilot testing of the 1M5R module file to gain insights from the pilot testing of the 1M5R module.
      
-4.	Reproduce Analysis: The analysis directory contains R markdown documents that generate tables and figures. Download and execute these documents to recreate the report results, tables and visualizations.
+4.	Reproduce Analysis: The [analysis directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/analysis) contains R markdown documents that generate tables and figures. Download and execute these documents to recreate the report results, tables and visualizations.
     
-5.	Access Datasets: The datasets directory contains datasets used for the analysis. You can use these datasets for further research and analysis.
+5.	Access Datasets: The [datasets directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/datasets) contains datasets used for the analysis. You can use these datasets for further research and analysis.
     
 Thank you for your interest in this repository. If you have any questions or feedback, please don't hesitate to reach out f.kosmowski@cgiar.org.
 
