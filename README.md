@@ -15,11 +15,11 @@ The report results can be reproduced by downloading the [analysis directory](htt
    
 4. Pilot Testing of the 1M5R Module: The [Pilot testing of the 1M5R module](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/Pilot_testing_1M5R.html) file contains descriptive results from the pilot testing of the 1M5R (One Must Do, Five Reductions) instruments integrated into the VHLSS 2023. This valuable information sheds light on the methodological challenges for collecting data on Sustainable Intensification practices.
    
-5. Variable Dictionary: The [VHLSS_22_variables](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/VHLSS_22_variables.doc) document provides a detailed dictionary of variables used in the analysis. It explains the meaning and context of each variable, enhancing the transparency of the research.
+5. Variable Dictionary: The [VHLSS_22_variables](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/VHLSS_22_variables.doc) document provides a detailed dictionary of variables used in the analysis. It explains the meaning and context of each variable, enhancing the transparency of the research.
    
-6. Datasets: The repository includes several datasets used for the analysis. These datasets relate VHLSS 2022 new data inclusions, shapefiles, rice QTL data, and weights. Modules are available in the published report in Appendix C. Dataset were anonymized and are available in the [datasets directory](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/).
+6. Datasets: The repository includes several datasets used for the analysis. These datasets relate VHLSS 2022 new data inclusions, shapefiles, rice QTL data, and weights. Modules are available in the published report in Appendix C. Dataset were anonymized and are available in the [datasets directory]((https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/datasets).
     
-7. Analysis: The [analysis directory](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/) contains R markdown documents used to generate the tables and figures presented in the report. These documents are well-documented and can be easily executed to reproduce the visualizations in the report.
+7. Analysis: The [analysis directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/analysis) contains R markdown documents used to generate the tables and figures presented in the report. These documents are well-documented and can be easily executed to reproduce the visualizations in the report.
    
 •	VH22_Core_Results.Rmd reproduce the report core results. Its output are Table 4 Report.xls and VHLSS22_Analysis.doc
 
@@ -32,18 +32,16 @@ The report results can be reproduced by downloading the [analysis directory](htt
 # How to Use This Repository
 
 To make the most of this repository, consider the following steps:
+ 
+1.	Understand Innovations: Study the [Vietnam_Stocktake](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/VN_Stocktake.xlsx) file for a comprehensive understanding of the 79 agricultural innovations identified in Vietnam.
 
-1.	Explore the Report: Start by reading the main [report](). It provides insights into the adoption patterns of various agricultural innovations across the country, including rice traits identified using molecular markers, sustainable intensification practices and climate change adaptation options.
+2.	Explore the Report: The [report]() provides insights into the adoption patterns of various agricultural innovations across the country, including rice traits identified using molecular markers, sustainable intensification practices and climate change adaptation options.
    
-3.	Understand Innovations: Study the [Vietnam_Stocktake](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/VN_Stocktake.xlsx) file for a comprehensive understanding of the agricultural innovations identified in Vietnam.
-   
-5.	Learn from Pilot Testing: Explore the Pilot testing of the 1M5R module file to gain insights from the pilot testing of the 1M5R module.
-   
-7.	Watch Training Video: The Video_training_Rice_DNA.mp4 video and Training_Cassava_DNA.pdf explain the Cassava sampling demonstrate rice and cassava leaf sampling techniques, supporting enumerators in their work.
-   
-9.	Reproduce Analysis: The analysis directory contains R markdown documents that generate tables and figures. Download and execute these documents to recreate the report results, tables and visualizations.
+3.	Learn from Pilot Testing: Explore the Pilot testing of the 1M5R module file to gain insights from the pilot testing of the 1M5R module.
+     
+4.	Reproduce Analysis: The analysis directory contains R markdown documents that generate tables and figures. Download and execute these documents to recreate the report results, tables and visualizations.
     
-11.	Access Datasets: The datasets directory contains datasets used for the analysis. You can use these datasets for further research and analysis.
+5.	Access Datasets: The datasets directory contains datasets used for the analysis. You can use these datasets for further research and analysis.
     
 Thank you for your interest in this repository. If you have any questions or feedback, please don't hesitate to reach out f.kosmowski@cgiar.org.
 
