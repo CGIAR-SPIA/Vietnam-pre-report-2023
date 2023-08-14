@@ -17,17 +17,17 @@ The report results can be reproduced by downloading the [analysis directory](htt
    
 5. Variable Dictionary: The [VHLSS_22_variables](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/VHLSS_22_variables.doc) document provides a detailed dictionary of variables used in the analysis. It explains the meaning and context of each variable, enhancing the transparency of the research.
    
-6. Datasets: The repository includes several datasets used for the analysis. These datasets relate VHLSS 2022 new data inclusions, shapefiles, rice QTL data, and weights. Modules are available in the published report in Appendix C. Dataset were anonymized and are available in the [datasets directory]((https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/datasets).
+6. Datasets: The repository includes several datasets used for the analysis. These datasets relate VHLSS 2022 new data inclusions, shapefiles, rice QTL data, and weights. Modules are available in the published report in Appendix C. Dataset were anonymized and are available in the [datasets directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/datasets).
     
 7. Analysis: The [analysis directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/analysis) contains R markdown documents used to generate the tables and figures presented in the report. These documents are well-documented and can be easily executed to reproduce the visualizations in the report.
    
-•	VH22_Core_Results.Rmd reproduce the report core results. Its output are Table 4 Report.xls and VHLSS22_Analysis.doc
+[VH22_Core_Results.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/VH22_Core_Results) reproduce the report core results. Its output are Table 4 Report.xls and VHLSS22_Analysis.doc
 
-•	Rice_QTLs.Rmd generates province-level maps of QTL distribution (Rice-QTLs-by-province.pdf). It also generates the maps used in the report (Province_Markers_Maps.doc)
+[Rice_QTLs.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/Rice_QTLs) generates province-level maps of QTL distribution (Rice-QTLs-by-province.pdf). It also generates the maps used in the report (Province_Markers_Maps.doc)
 
-•	Self_elicitated_rice_traits reproduced the analysis comparing farmer's elicited traits with rice QTL markers (Self_elicitated_rice_traits.docx).
+[Self_elicitated_rice_traits.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/Self_elicitated_rice_traits.Rmd) reproduced the analysis comparing farmer's elicited traits with rice QTL markers (Self_elicitated_rice_traits.docx).
 
-•	CSMaps.Rmd generates the maps and OLS anlaysis published in the report (CSMaps.docx)
+[CSMaps.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/CSMaps.Rmd) generates the maps and OLS anlaysis published in the report (CSMaps.docx)
 
 # How to Use This Repository
 
