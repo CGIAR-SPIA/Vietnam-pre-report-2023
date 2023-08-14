@@ -1,8 +1,8 @@
-# Preliminary Insights into the Adoption Agricultural Innovations in Vietnam - Report Repository
+# Preliminary Insights into the Adoption of Agricultural Innovations in Vietnam - Report Repository
 
 Welcome to this repository. It houses material and reproducible codes that were used report documenting the adoption of agricultural innovations in Vietnam during the year 2022. The report is based on data collected by the [General Statistics Office](https://www.gso.gov.vn/en/homepage/) from the Vietnam Household Living Standards Survey (VHLSS) 2022 and provides insights into the adoption patterns of various agricultural innovations across the country, including rice traits identified using molecular markers, sustainable intensification practices and climate change adaptation options.
 
-The report results can be reproduced by downloading the [analysis directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/) to your local machine and running the R scripts.
+The report results can be reproduced by downloading the [analysis directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis) to your local machine and running the R scripts.
 
 
 # Repository Contents
