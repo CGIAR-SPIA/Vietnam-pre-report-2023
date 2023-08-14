@@ -1,0 +1,402 @@
+---
+date: "`r Sys.Date()`"
+title: "Preliminary Insights into the adoption of Agricultural Innovations in Vietnam - Core Results"
+author: "CGIAR SPIA, 2023"
+output: 
+  officedown::rdocx_document:
+    mapstyles:
+      Normal: ['First Paragraph']
+  page_size:
+    width: 8.3
+    height: 11.7
+    orient: "portrait"
+  page_margins:
+    bottom: 0.75
+    top: 0.75
+    right: 1
+    left: 1
+    header: 0.5
+    footer: 0.5
+    gutter: 0.5
+---
+
+```{r setup, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.cap = TRUE)
+
+# Check and install packages if not already installed
+required_packages <- c("dplyr", "officedown", "officer", "tidyverse", "haven", "flextable",
+                       "ggpubr", "readxl", "readr", "curl", "httr", "jsonlite")
+
+missing_packages <- required_packages[!required_packages %in% installed.packages()]
+if (length(missing_packages) > 0) {
+  install.packages(missing_packages, dependencies = TRUE)
+}
+
+library(dplyr)
+library(officedown)
+library(officer)
+library(tidyverse)
+library(haven)
+library(flextable)
+library(ggpubr)
+library(readxl)
+library(readr)
+library(curl)
+library(httr)
+library(jsonlite)
+
+# Access the CGIAR-SPIA repository and download VHLSS 2022 data integrations
+api_url <- "https://api.github.com/repos/CGIAR-SPIA/Vietnam-pre-report-2023/contents/datasets/"
+response <- GET(api_url)
+
+if (status_code(response) == 200) {
+  content_list <- content(response, as = "text")
+  content_list <- fromJSON(content_list)
+  
+  # Filter out only the file names with .dta extension
+  dta_files <- content_list$name[grepl("\\.dta$", content_list$name)]
+  
+  # Create a list to store .dta file contents
+  Import <- list()
+  
+  # Loop through .dta files and import as binary
+  for (dta_file in dta_files) {
+    dta_url <- paste0("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/", dta_file)
+    dta_response <- GET(dta_url)
+    
+    if (status_code(dta_response) == 200) {
+      dta_content <- content(dta_response, as = "raw")
+      Import[[dta_file]] <- haven::read_dta(dta_content)
+    } else {
+      cat("Error fetching .dta file content:", dta_file, "\n")
+    }
+  }
+  
+  # Print the list of .dta file contents
+  print(Import)
+} else {
+  cat("Error fetching folder content\n")
+}
+
+#setwd("C://Users//FKosmowski//OneDrive - CGIAR//VHLSS22/Other")
+IDProv <- read.csv(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Provinces_IDs.csv"))
+names(IDProv)[1] = "MATINH"
+for (i in 1:5){Import[[i]] <- Import[[i]] %>% mutate(IDDIABAN=paste(MAXA,MADIABAN,sep = ""))}
+wg <- read_dta(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Weights/wt2022_SPIA.dta"))
+
+#Merge weight and region 
+number <- function(i){as.numeric(as.character(unlist(i)))}
+ma=c("MATINH","MAHUYEN","MAXA","MADIABAN")
+for (j in 1:4) {for (i in 1:5) {Import[[i]][,ma[[j]]] <- number(Import[[i]][,ma[[j]]])} }
+Import <- lapply(Import, left_join, IDProv, by="MATINH")
+names(wg)[1:5]=c("MATINH","MAHUYEN","MAXA","MADIABAN","KYDIEUTRA")
+Import=lapply(Import, function(x){left_join(x,wg) %>% filter(!is.na(wt45))})
+
+#Correct wrong barcode IDs
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005009"]="01162"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005011"]="00934"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20458007015"]="00658"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005005"]="00710"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "05191009009"]="00844"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "13990017013"]="00780"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "13483003011"]="00368"
+
+dup_code=c("20386004013","20386004015","21295017003","21295017009","23395004007","23539001001","23539001013","23539001015","29401018013","29497008005","30034007003","30034007009")
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO %in% dup_code]=""
+
+#Filter out test case
+ID <- Import[[1]] %>% group_by(IDHO) %>% summarise(IDHO=head(IDHO),wt45=head(wt45),MATINH=head(MATINH)) %>% unique()
+#Import[[5]]$M4B113_C16 <- as.numeric (Import[[5]]$M4B113_C16)
+ID0 <- Import[[5]]  %>% mutate(Code_new=number(M4B113_C16)) %>% filter(is.na(Code_new)& IDHO %in% ID$IDHO|Code_new<=1250) %>% select(IDHO,M4B113_C16) %>% unique()
+Import <- lapply(Import, function(x){x %>% filter(IDHO %in% ID0$IDHO)})
+
+#QTL1 = read.csv("C:/Users/FKosmowski/OneDrive - CGIAR/VHLSS22/Other/QTL_markers.csv")
+QTL1 <- read.csv(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/QTL_markers.csv"))
+for (i in 2:ncol(QTL1)) {
+  c0=grep("--",QTL1[,i])
+  c1=grep("+p",QTL1[,i])
+  QTL1[c0,i]=0;QTL1[c1,i]=1
+  cNA=which(!(QTL1[,i] %in% c(0,1)))
+  QTL1[cNA,i]=NA}
+QTL1[,2:ncol(QTL1)]=number(QTL1[,2:ncol(QTL1)])
+
+recode.gene=function(y){
+  tg=rowSums(QTL1[,y],na.rm = T)*ifelse(rowSums(is.na(QTL1[,y])) == ncol(QTL1[,y]), NA, 1)
+  tg[tg>1]=1
+  return(tg)}
+QTL1$Drought=recode.gene(c("qDTY12.1","qDTY1.1","qDTY2.1","qDTY2.2","qDTY3.1","qDTY3.2","qDTY4.1"))
+QTL1$Salt=recode.gene(c("Saltol","qSIS1L","qSOR1"))
+QTL1$Aroma=recode.gene(c("fgr.1","Alk"))
+QTL1$Aroma1=recode.gene(c("Chalk5","Alk"))
+QTL1$BPHre=recode.gene(c("BPH17","BPH32"))
+QTL1$Blast=recode.gene(c("Pita","qPi33"))
+QTL1$Blight=recode.gene(c("qXa26","qXa4"))
+QTL1$Char1=recode.gene(c("SLG7","Alk","Chalk5","GS3","NAS3","TGW6"))
+QTL1$Char2=recode.gene(c("Gn1a","ehd1","RFT1","Hd1","GFR1","Hd2","Ghd7","Hd3a","NGR5","NAL1"))
+
+CG= inner_join(Import[[5]] %>% mutate(Code_new=number(M4B113_C16)),QTL1,by=c("Code_new"="M4B113_C16")) %>% filter(!is.na(Code_new)&Code_new<=1250) 
+n.2020=7976267
+n.2022=7725011
+
+```
+
+**Table 1: Distribution of sampled rice EAs and households in VHLSS 2022 by region, urban and rural**
+
+```{r table1, echo=FALSE,message=FALSE,warning=FALSE}
+##Table 1
+# 2.Count number of EAs by region
+IDDIABAN <- Import[[2]] %>% select(Region,MAXA,IDDIABAN,ttnt) %>% unique() # n=1767, while should be on all rice growing hh (1199+12658 ?)
+T1.1 <- addmargins(table(IDDIABAN$Region,IDDIABAN$ttnt),1)
+# 3.Count number of hhs by region
+IDHO <- Import[[2]] %>% select(Region,IDHO,ttnt) %>% unique()
+T1.2 <- addmargins(table(IDHO$Region,IDHO$ttnt),1)
+T1 <- as.data.frame(matrix(NA,nrow=7,ncol = 4)) 
+T1[,c(1,3)] <- T1.1; T1[,c(2,4)] <- T1.2
+colnames(T1) <- c("EAs.Urban","Hhs.Urban","EAs.Rural","Hhs.Rural")
+rownames(T1) <- c("Red River Delta","Northern Midlands and Mountains","Northern and Coastal Central","Central Highlands","South East","Mekong River Delta","Vietnam")
+rm(IDDIABAN,IDHO,T1.1,T1.2)
+set_table_properties(fontsize(flextable(T1 %>% rownames_to_column("Region")) %>% delete_part(part = "header") %>% add_header_row(values = c("","EAs","Hhs","EAs","Hhs"),colwidths = c(rep(1,5))) %>% add_header_row(values = c("Region","Urban","Rural"),colwidths = c(1,2,2)),size=10),layout = "autofit",width = .8)
+
+```
+\newpage 
+**Table 2. Distribution of DNA fingerprinted rice samples in VHLSS 2022 by region (rural)**
+
+```{r table2, echo=FALSE,message=FALSE}
+##summary(Import[[4]])
+T2 <- Import[[4]] %>% filter(IDHO %in% ID0$IDHO[!(ID0$M4B113_C16=="")]) %>% select(IDHO,IDDIABAN,MATINH,MAXA,MADIABAN,HOSO,M4B112_STT) %>% group_by(IDHO) %>% mutate(nplot=max(M4B112_STT)) %>% select(-M4B112_STT) %>% unique() %>% left_join(IDProv)
+T2 = T2 %>% filter(IDHO %in% CG$IDHO)
+T2.1 <- T2 %>% ungroup() %>% select(Region,IDDIABAN) %>% unique()
+T2.1 <- as.data.frame(addmargins(table(T2.1$Region)))
+T2.2 <- T2 %>% group_by(Region) %>% summarise(hhs=length(unique(IDHO)),plot.per.hh=mean(nplot))
+T2.2[7,2] <- length(unique(T2$IDHO))
+T2.2[7,3] <- mean(T2$nplot)
+T2.2[7,1] <- "Sum"
+T2.all <- left_join(T2.1,T2.2,by=c("Var1"="Region"))
+T2.all$Var1 <- c("Red River Delta","Northern Midlands and Mountains","Northern and Coastal Central","Central Highlands","South East","Mekong River Delta","Vietnam")
+colnames(T2.all) <- c("Region","EAs","Hhs","Plots/Household")
+set_table_properties(fontsize(flextable(T2.all ),size=10), layout = "autofit", width = .8)
+```
+\newpage
+```{r table 21, echo=FALSE,message=FALSE}
+T21 <- Import[[5]] %>% filter(IDHO %in% T2$IDHO) %>% select(IDHO,IDDIABAN,season) %>% group_by(season) %>% summarise(n_hh=n_distinct(IDHO),p_hh=n_distinct(IDHO)/T2.all[7,3])
+T21[4,2:3] <- colSums(T21[,2:3]) %>% t()
+T21[,3] <- round(T21[,3]*100,2)
+T21$season <- c("Winter-Spring","Summer-Autumn","Mua/Autumn-Winter","Total")
+flextable(T21)  %>% delete_part(part = "header") %>% add_header_row(values = c("Season","Number of Hhs","%"),colwidths = c(rep(1,3)))  %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit")
+```
+\newpage
+**Table 3. Distribution of DNA fingerprinted rice samples in VHLSS 2022 by season and region (rural)**
+```{r table 21.b, echo=FALSE,message=FALSE}
+T22 = Import[[5]] %>% filter(IDHO %in% T2$IDHO) %>% select(IDHO,season,Region) %>% group_by(season,Region) %>% summarise(n=n()) %>% 
+  pivot_wider(names_from = season,values_from = n)
+colnames(T22)=c("Region","Winter-Spring","Summer-Autumn","Mua/Autumn-Winter")
+flextable(T22) %>% delete_part(part = "header") %>% add_header_row(values = c(" ","Winter-Spring","Summer-Autumn","Mua/Autumn-Winter"),colwidths = c(rep(1,4))) %>% add_header_row(values = c("Region","Season"),colwidths = c(1,3)) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit")
+```
+
+\newpage
+**Table 4: Adoption rates in the VHLSS 2022, in %**
+
+An EA is defined as an adopted EAs of a particular practice if it has at least one household following the practice.
+
+```{r table4.1, echo=FALSE,message=FALSE,warning=FALSE}
+##Table 4
+#1. Crop germplasm
+var41 <- c("Salt","qSub1","Drought","Char1","Char2","Aroma","Aroma1","BPHre","Blast","Blight")
+T4.1 <- as.data.frame(matrix(NA,nrow = length(var41),ncol = 5))
+T4.1[,2] <- CG %>% summarise(across(any_of(var41), ~ sum(.x==1, na.rm = T)/n())) %>% t() 
+for (i in 1:length(var41)) {
+  T4.1[i,1] = CG %>% filter(.[[var41[[i]]]]==1) %>% summarise(n_distinct(IDDIABAN))/(CG %>% summarise(n_distinct(IDDIABAN)))}
+T4.1[,4] = T4.1[,2]*n.2020; T4.1[,5] = T4.1[,2]*n.2022 #changed
+n.EAs.1=CG %>% summarise(n_distinct(IDDIABAN)); n.Hh.1 =nrow(CG)
+
+T4c=matrix(NA,nrow = 1,ncol = 5) %>% as.data.frame()
+T4c[,1]=(Import[[5]]%>% filter(M4B111_C10==1)%>%summarise(n_distinct(IDDIABAN)))/(Import[[5]] %>%summarise(n_distinct(IDDIABAN)))
+T4c[,2]=(Import[[5]] %>% summarise(sum(M4B111_C10[M4B111_C10==1]*wt45[M4B111_C10==1],na.rm = T)/sum(wt45)))
+T4c[,4]= T4c[,2]*n.2020;  T4c[,5] = T4c[,2]*n.2022 
+T4.1=bind_rows(T4c,T4.1)
+T4.1[,1:2] <- round(T4.1[,1:2]*100,1)
+T4.1 <- T4.1 [, 1:4]
+T4.1 [,4] <- round (T4.1 [,4], 0)
+rownames(T4.1) <- c("Main variety grown is certified ","Main variety grown is salt-tolerant","Main variety grown is submergence-tolerant ","Main variety grown is drought-tolerant ","Main variety grown contains: SLG7, Alk, Chalk5, GS3, NAS3, TGW6","Main variety grown contains: Gn1a, ehd1, RFT1, Hd1, GFR1, Hd2, Ghd7, NGR5, NAL1, Hd3a","Main variety grown is aromatic (frag.1, Alk)", "Main variety grown is aromatic (Chalk5, Alk)","Main variety grown is brown-planthopper resistant","Main variety grown is blast resistant","Main variety grown is bacterial blight resistant")
+colnames(T4.1) <- c("% of EAs","% of hhs","Conditions","Reached HHs")
+T4.1[1,3] <- paste(paste("EAs with rice hhs in VH22: n=",Import[[5]] %>%summarise(n_distinct(IDDIABAN)),sep = " "),"Households planted rice in the last 12 months",sep="\n")
+T4.1[2,3] <- paste("Households selected for leaves sampling (n=",n.Hh.1,"hhs in",n.EAs.1,"EAs)",sep = " ")
+flextable(T4.1%>% rownames_to_column("Crop germplasm improvements (most recent Winter-Spring season in the last 12 months)"))  %>% merge_at(i=2:7,j=4) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit")
+```
+
+\newpage
+Recommendations related to CS-MAP
+
+```{r table42, echo=FALSE,message=FALSE,warning=FALSE}
+#2.CS-MAP
+Import[[2]]$ONE.SEA <- ifelse(Import[[2]]$M4B111_C41==1|Import[[2]]$M4B111_C42==1|Import[[2]]$M4B111_C43==1|Import[[2]]$M4B111_C44==1,1,2)
+Import[[2]]$ONE.SEA[Import[[2]]$M4B111_C3==1&Import[[2]]$M4B111A_MA==2]=1
+var42 <- c("M4B111_C2","M4B111_C3","ONE.SEA")
+T4.2 <- as.data.frame(matrix(NA,nrow = 6,ncol = 9))
+for (i in 1:6) {
+  T4.2[i,c(2,4,6)] <- Import[[2]] %>% filter(CSMAP==1,M4B111A_MA==i) %>% summarise(across(any_of(var42), ~ sum(.x[.x==1]*wt45[.x==1], na.rm = T)/sum(wt45)))
+  T4.2[i,c(1,3,5)] <- Import[[2]] %>% filter(CSMAP==1,M4B111A_MA==i) %>% group_by(IDDIABAN) %>% summarise(across(any_of(var42),~min(.x,na.rm=T))) %>% summarise(across(any_of(var42),~sum(.x==1,na.rm = T)/n()))
+}
+n.EAs.2 <- Import[[2]] %>% filter(CSMAP==1,M4B111A_MA==1) %>% select(IDDIABAN) %>% unique() %>% nrow()
+##Counting hh applied at least one recommendation
+T4.2.1= Import[[2]] %>% filter(CSMAP==1) %>% select(IDDIABAN,IDHO,M4B111A_MA,M4B111_C2,M4B111_C3,ONE.SEA,Region,wt45)
+T4.2.1$App.sea=ifelse(T4.2.1$M4B111A_MA==2&T4.2.1$M4B111_C3==1|T4.2.1$M4B111A_MA!=2&T4.2.1$ONE.SEA==1,1,0)
+T4.2.1$App.plot=ifelse(T4.2.1$M4B111_C3==1,1,0)
+T4.2.1$Heard=ifelse(T4.2.1$M4B111_C2==1,1,0)
+T4.2.1 = T4.2.1 %>% group_by(IDHO)%>% 
+  summarise(n.rec1=sum(Heard,na.rm = T),n.rec2=sum(App.plot,na.rm = T),n.rec3=sum(App.sea,na.rm = T),Region=head(Region),wt45=head(wt45),IDDIABAN=head(IDDIABAN)) %>% unique() %>% ungroup()
+var421=c("n.rec1","n.rec2","n.rec3")
+T4.2[7,c(2,4,6)] = T4.2.1 %>% summarise(across(any_of(var421),~ sum(.x[.x>1]*wt45[.x>1], na.rm = T)/sum(wt45)))
+T4.2[7,c(1,3,5)] = T4.2.1 %>% group_by(IDDIABAN) %>% summarise(across(any_of(var421),~max(.x,na.rm=T))) %>% summarise(across(any_of(var421),~sum(.x>1,na.rm = T)/n()))
+n.2020.CSMAP=6195702; n.2022.CSMAP=6040778
+T4.2[,8]=T4.2[,6]*n.2020.CSMAP;T4.2[,9]=T4.2[,6]*n.2022.CSMAP;
+T4.2[,1:6] <- round(T4.2[,1:6]*100,1)
+T4.2 <- T4.2 [, c(1:8)] 
+T4.2 [, 8] <- round (T4.2 [, 8], 0)
+##Calculate number of hh reach: %HH*(Number of rice hhs)=%HH*(% of rice hh in all hhs*Number of hhs)
+rownames(T4.2) <- c("Not cultivating rice ","Shifting from rice to another crop","Change in rice sowing/transplanting dates","Rice varieties to sow","Shifting to shorter duration rice varieties","Changes in plot irrigation schedule","Heard/ Applied at least one recommendations above")
+T4.2[1,7] <- paste(paste("EAs having rice hhs in CSMAP provinces: n=",n.EAs.2, sep= " "),paste("Households planting rice in the last 12 months in CSMAP provinces",sep = " "),sep = "\n")
+flextable(T4.2 %>% rownames_to_column()) %>% merge_at(i=1:5,j=8) %>% delete_part(part = "header") %>% add_header_row(values = c("","%EAs","%Hhs","%EAs","%Hhs","%EAs","%Hhs","",""), colwidths = c(rep(1,9))) %>% add_header_row(values = c("Recommendations in the last 12 months","Ever-heard","Applied on at least one plot","Applied on at least one season","Conditions","Reached HHs"),colwidths = c(1,2,2,2,1,1)) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit")
+```
+
+<!---BLOCK_LANDSCAPE_START--->
+
+**Table 5. Sustainable Intensification packages adoption estimates in the VHLSS 2022, in %**
+```{r table43, echo=FALSE,message=FALSE,warning=FALSE,fig.width=8,out.width="100%"}
+#3.NRM
+nrm <- c(4,3,6,5,2,1)
+T4.3 <- as.data.frame(matrix(NA,nrow = 6,ncol = 8))
+var1 <- names(Import[[3]])[c(9,11)]
+for (i in 1:6) {
+  T4.3[i,c(2,4)] <- Import[[3]]%>% filter(M4B111B_MA==nrm[[i]]) %>% summarise(across(any_of(var1), ~ sum(.x[.x==1]*wt45[.x==1], na.rm = T)/sum(wt45)))
+  T4.3[i,c(1,3)] <- Import[[3]]%>% filter(M4B111B_MA==nrm[[i]]) %>% group_by(IDDIABAN)%>% summarise(across(any_of(var1),~min(.x,na.rm=T))) %>% summarise(across(any_of(var1),~sum(.x==1,na.rm=T)/n())) %>% t()
+}
+T4.3[,5]=T4.3[,2]*n.2020;T4.3[,6]=T4.3[,4]*n.2020
+T4.3[,7]=T4.3[,2]*n.2022;T4.3[,8]=T4.3[,4]*n.2022
+row.names(T4.3) <- c("1.IPM","2.AWD","3.SRI","4.3R3G","5.1M5R","6.VietGAP")
+T4.3[,1:4] <- round(T4.3[,1:4]*100,1)
+T4.3 <- T4.3 [, 1:6]
+T4.3 [, c(5,6)] <- round (T4.3 [, c(5,6)])
+
+names(T4.3)[1:4] <- c("EA_Awareness","HH_Awareness","EA_Adoption","HH_Adoption","AwareHH.20","AdoptHH.20")
+flextable(T4.3 %>% rownames_to_column())  %>% delete_part(part = "header") %>% add_header_row(values = c("","%EAs","%Hhs","%EAs","%Hhs","Awareness","Adoption"),colwidths = c(rep(1,7))) %>% add_header_row(values = c("Natural Resources Management","Awareness","Adoption","Reached HHs"),colwidths = c(1,2,2,2)) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit")
+```
+\newpage
+**Figure 1. Awareness and adoption estimates for Sustainable Intensification packages promoted in Vietnam. IPM = Integrated Pest Management; SRI = Sustainable Rice Intensification; 3R3G = 3 Reduction 3 Gains; 1M5R = One Must Do Five Reductions; VietGAP = Vietnamese Good Agricultural Practices**
+```{r table43b, echo=FALSE,message=FALSE,warning=FALSE,fig.width=8,out.width="100%"}
+T4.3_bar <- T4.3[,1:4] %>% rownames_to_column("NRM") %>% pivot_longer(!c(NRM),names_to = c(".value","Group"),names_pattern = "(EA_|HH_)(.*)") %>% filter(!(NRM=="2.AWD"))
+p1 <- ggplot(T4.3_bar, aes(NRM,EA_,fill=factor(Group,levels = c("Awareness", "Adoption")))) + geom_bar(stat = 'identity',position = 'dodge') + labs(fill=" ") +scale_fill_manual(values=c("#5A8890","#13505C"))+ scale_x_discrete(labels= c("1.IPM"="IPM","3.SRI"="SRI","4.3R3G"="3R3G","5.1M5R"="1M5R","6.VietGAP"="VietGAP"))+ scale_y_continuous (breaks=c(0,20,40,60),limits = c(0,60))+ ggtitle("EA-level") + theme(axis.title = element_blank())
+p2 <- ggplot(T4.3_bar, aes(NRM,HH_,fill=factor(Group,levels = c("Awareness", "Adoption")))) + geom_bar(stat = 'identity',position = 'dodge') + labs(fill=" ") +scale_fill_manual(values=c("#5A8890","#13505C"))+ scale_x_discrete(labels= c("1.IPM"="IPM","3.SRI"="SRI","4.3R3G"="3R3G","5.1M5R"="1M5R","6.VietGAP"="VietGAP"))+ scale_y_continuous (breaks=c(0,20,40,60),limits = c(0,60))+ ggtitle("Household-level") + theme(axis.title = element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank())
+ggarrange(p1, p2, ncol=2, nrow=1, common.legend=TRUE, legend="bottom")
+```
+
+<!---BLOCK_LANDSCAPE_STOP--->
+
+**Table 6. AWD adoption estimates in the VHLSS 2022, in %**
+
+```{r table4.32, echo=FALSE,message=FALSE,warning=FALSE}
+# AWD proxy
+Import[[5]]$M4B111_C8[Import[[5]]$M4B111_C8>30] <- 0
+Import[[5]]$Min.2drys=ifelse(Import[[5]]$M4B111_C7>1,1,2)
+Import[[5]]$Min.2drys.7=ifelse(Import[[5]]$M4B111_C7>1 & Import[[5]]$M4B111_C8>6,1,2)
+Import[[5]]$Min.2drys.10=ifelse(Import[[5]]$M4B111_C7>1 & Import[[5]]$M4B111_C8>9,1,2)
+var4.3=c("Min.2drys","Min.2drys.7","Min.2drys.10")
+T4.32 <- matrix(NA,nrow=3,ncol=5) %>% as.data.frame()
+T4.32[,2] <- Import[[5]]  %>% summarise(across(any_of(var4.3), ~ sum(.x[.x==1]*wt45[.x==1], na.rm = T)/sum(wt45))) %>% t()
+T4.32[,1] <- Import[[5]] %>% group_by(IDDIABAN) %>% summarise(across(any_of(var4.3),~min(.x,na.rm=T))) %>% summarise(across(any_of(var4.3),~sum(.x==1,na.rm=T)/n())) %>% t()
+T4.32[,4] = T4.32[,2]*n.2020;T4.32[,5] = T4.32[,2]*n.2022
+T4.32[,1:2] <- round(T4.32[,1:2]*100,1)
+T4.32 <- T4.32 [, -5]
+row.names(T4.32) <- c("Min 2 dry-downs","Min 2 dry-downs & 7-day length","Min 2 dry-downs & 10-day length")
+colnames(T4.32) <- c("%EA","%Hh","Conditions","Reached HHs")
+T4.32[1,3] <- paste(paste("EAs having rice hhs in VH22: n=",Import[[5]] %>% summarise(n_distinct(IDDIABAN)), sep= " "),paste("Households planting rice in the last 12 months",sep = " "),sep = "\n")
+flextable(T4.32 %>% rownames_to_column("AWD Proxy")) %>% merge_at(i=1:3,j=4) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit") 
+
+Import[[5]]=Import[[5]] %>% left_join(Import[[3]] %>% filter(M4B111B_MA==3 & M4B111_C5D==1) %>% select(IDHO,M4B111_C5D) %>% unique()) %>% mutate(M4B111_C5D=case_when(is.na(M4B111_C5D)~2,TRUE~M4B111_C5D))
+
+TAWD=matrix(NA,3,3) %>% as.data.frame(); TAWD[1,2:3]=c("True","False"); TAWD[2:3,1]=c("True","False")
+attach(Import[[5]])
+TAWD[2,2]=round(sum(wt45[M4B111_C5D==1&Min.2drys.10==1])*100/sum(wt45),2) 
+TAWD[3,3]=round(sum(wt45[M4B111_C5D==2&Min.2drys.10==2])*100/sum(wt45),2) 
+TAWD[2,3]=round(sum(wt45[M4B111_C5D==1&Min.2drys.10==2])*100/sum(wt45),2) 
+TAWD[3,2]=round(sum(wt45[M4B111_C5D==2&Min.2drys.10==1])*100/sum(wt45),2) 
+TAWD=cbind(c("","Measurement A","Name"),TAWD) #changed
+flextable(TAWD) %>% delete_part("header") %>% add_header_row(values = c("","","Measurement B","Two dry-downs of avg 10 days"))%>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit") #changed
+```
+
+
+```{r excel,echo=FALSE,message=FALSE,warning=FALSE}
+Tab4=T4.1
+colnames(Tab4)=c("% Of EAs","% Of hhs with innovation (among rice-growing hhs defined in next column)","Conditions","Estimated number of hhs")
+Tab4NRM=T4.3[c(4,5,2),c(3,4,6)]
+colnames(Tab4NRM)=c("% Of EAs","% Of hhs with innovation (among rice-growing hhs defined in next column)","Estimated number of hhs")
+Tab4NRM$Conditions=NA
+Tab4=bind_rows(Tab4,Tab4NRM)
+Tab4[(nrow(Tab4)+1):(nrow(Tab4)+7),]=T4.2[,5:8] 
+Tab4[(nrow(Tab4)+1):(nrow(Tab4)+3),]=T4.32 [, -5]
+Tab4 [,4] <- round (Tab4 [,4])
+
+library(openxlsx)
+write.xlsx(Tab4[,1:4]%>%rownames_to_column(),"Table 4 Report.xlsx")
+#Tab4 <- as.data.frame (Tab4)
+```
+
+<!---BLOCK_LANDSCAPE_START--->
+
+**Table 7.Adoption rates by region in the VHLSS 2022, in %**
+
+```{r table51, echo=FALSE,message=FALSE,warning=FALSE}
+## Table 5
+# 1. Crop germplasms
+T5.1=matrix(NA,nrow = length(var41)+1,ncol = 12) %>% as.data.frame()
+T5.1[2:nrow(T5.1),seq(2,12,2)] =CG %>% group_by(Region) %>% summarise(across(any_of(var41), ~ sum(.x==1, na.rm = T)/n())) %>% select(-Region)%>% t() 
+T5.1[2:nrow(T5.1),seq(1,11,2)]=CG %>% group_by(Region,IDDIABAN) %>% summarise(across(any_of(var41),~sum(.x,na.rm = T))) %>% ungroup(IDDIABAN)%>% summarise(across(any_of(var41),~sum(.x>0,na.rm = T)/n())) %>% select(-Region)%>% t() 
+T5.1[1,seq(2,12,2)]=Import[[5]] %>% group_by(Region) %>% summarise(sum(M4B111_C10[M4B111_C10==1]*wt45[M4B111_C10==1],na.rm = T)/sum(wt45)) %>% select(-Region)%>% t() 
+T5.1[1,seq(1,11,2)]=Import[[5]] %>% group_by(Region,IDDIABAN) %>% summarise(n=sum(M4B111_C10==1,na.rm = T)) %>% ungroup(IDDIABAN) %>% summarise(sum(n>0,na.rm = T)/n()) %>% select(-Region)%>% t() 
+T5.1 <- round(T5.1*100,1) 
+rownames(T5.1) <- c("Main variety grown is certified ","Main variety grown is salt-tolerant","Main variety grown is submergence-tolerant ","Main variety grown is drought-tolerant ","Main variety grown contains: SLG7, Alk, Chalk5, GS3, NAS3, TGW6","Main variety grown contains: Gn1a, ehd1, RFT1, Hd1, GFR1, Hd2, Ghd7, NGR5, NAL1, Hd3a","Main variety grown is aromatic (frag.1, Alk)", "Main variety grown is aromatic (Chalk5, Alk)","Main variety grown is brown-planthopper resistant","Main variety grown is blast resistant","Main variety grown is bacterial blight resistant")
+flextable(T5.1%>% rownames_to_column(" ")) %>% delete_part(part = "header") %>% add_header_row(values = c(" ",rep(c("%EA","%Hh"),6)),colwidths = c(rep(1,13)))%>% add_header_row(values=c(" ","Red River Delta","Northern Midlands and Mountains","Northern and Coastal Central","Central Highlands","South East","Mekong River Delta"),colwidths = c(1,rep(2,6))) %>% add_header_row(values = "Crop germplasm improvements (most recent Winter-Spring season in the last 12 months)",colwidths = 13) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit") %>% fit_to_width(max_width = 11)
+```
+<br>
+```{r table 5.2,echo=FALSE,warning=FALSE,message=FALSE}
+T5.2 <- as.data.frame(matrix(NA,nrow = 6,ncol = 2*5))
+for (i in 1:6) {
+  T5.2[i,seq(2,10,2)] <- Import[[2]] %>% filter(CSMAP==1,M4B111A_MA==i) %>% group_by(Region) %>% summarise(sum(ONE.SEA[ONE.SEA==1]*wt45[ONE.SEA==1],na.rm=T)/sum(wt45)) %>% select(-Region) %>% t()
+  T5.2[i,seq(1,9,2)] <- Import[[2]] %>% filter(CSMAP==1,M4B111A_MA==i) %>% group_by(IDDIABAN) %>% summarise(EA.min=min(ONE.SEA,na.rm = T), Region=head(Region)) %>% group_by(Region) %>% summarise(sum(EA.min==1,na.rm = T)/n()) %>% select(-Region) %>% t()
+}
+T5.2[7,seq(2,10,2)] = T4.2.1 %>% mutate(ap=ifelse(n.rec3>0,1,0)) %>% group_by(Region) %>% summarise(sum(ap[ap==1]*wt45[ap==1],na.rm = T)/sum(wt45)) %>% select(-Region) %>% t()
+T5.2[7,seq(1,9,2)]=T4.2.1 %>% group_by(IDDIABAN) %>% summarise(ap.m=max(n.rec3,na.rm = T),Region=head(Region))  %>% group_by(Region) %>% summarise(sum(ap.m>0,na.rm = T)/n()) %>% select(-Region) %>% t
+T5.2 <- round(T5.2*100,1)
+rownames(T5.2) <- c("Applied recommendation: Not cultivating rice ","Applied recommendation: Shifting from rice to another crop","Applied recommendation: Change in rice sowing/transplanting dates","Applied recommendation: Rice varieties to sow","Applied recommendation: Shifting to shorter duration rice varieties","Applied recommendation: Changes in plot irrigation schedule","Applied at least one recommendation above")
+
+flextable(T5.2%>% rownames_to_column(" ")) %>% delete_part(part = "header") %>% add_header_row(values = c(" ",rep(c("%EA","%Hh"),5)),colwidths = c(rep(1,11)))%>% add_header_row(values=c(" ","Red River Delta","Northern Midlands and Mountains","Northern and Coastal Central","Central Highlands","Mekong River Delta"),colwidths = c(1,rep(2,5))) %>% add_header_row(values = "Adaptive rice-based systems and cropping calendars  (any season in the last 12 months)",colwidths = 11) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit")%>% fit_to_width(max_width = 11)
+```
+
+\newpage
+```{r table 53, echo=FALSE, message=FALSE, warning=FALSE}
+# 3.NRM:
+nrm <- c(5,2,3)
+T5.3 <- as.data.frame(matrix(NA,nrow = 8,ncol = 13))
+for (i in 1:3) {
+  T5.3[c(i+1,i+5),seq(3,13,2)] <- Import[[3]]%>% filter(M4B111B_MA==nrm[[i]]) %>% group_by(Region)%>% summarise(across(any_of(var1), ~ sum(.x[.x==1]*wt45[.x==1], na.rm = T)/sum(wt45))) %>% select(-Region) %>% t()
+  T5.3[c(i+1,i+5),seq(2,12,2)] <- Import[[3]]%>% filter(M4B111B_MA==nrm[[i]]) %>% group_by(IDDIABAN)%>% summarise(across(any_of(var1), ~min(.x,na.rm=T)),Region=head(Region)) %>% group_by(Region) %>% summarise(across(any_of(var1),~sum(.x==1,na.rm=T)/n())) %>% select(-Region)%>% t()}
+T5.3[,2:13] <- round(T5.3[,2:13]*100,1)
+T5.3[,1] <- c("Natural Resource Management (self-elicitation, Ever-heard)","Three Gains Three Reductions (3G3R)","One Must Do Five Reductions (1M5R)","Alternate Wetting and Drying (AWD)","Natural Resource Management (self-elicitation, Applied in Last WS)","Three Gains Three Reductions (3G3R)","One Must Do Five Reductions (1M5R)","Alternate Wetting and Drying (AWD)")
+flextable(T5.3) %>% delete_part(part = "header") %>% merge_at(i=1,j=1:8) %>% merge_at(i=5,j=1:8)  %>% add_header_row(values = c(" ",rep(c("%EA","%Hh"),6)),colwidths = c(rep(1,13)))%>% add_header_row(values=c(" ","Red River Delta","Northern Midlands and Mountains","Northern and Coastal Central","Central Highlands","South East","Mekong River Delta"),colwidths = c(1,rep(2,6))) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit")%>% fit_to_width(max_width = 11)
+```
+\newpage
+```{r table 531, echo=FALSE, message=FALSE, warning=FALSE}
+T5.3.1 <- as.data.frame(matrix(NA,nrow = 3,ncol = 12))
+
+T5.3.1[1:3,seq(2,12,2)] <- Import[[5]] %>% group_by(Region)  %>% summarise(across(any_of(var4.3), ~ sum(.x[.x==1]*wt45[.x==1], na.rm = T)/sum(wt45))) %>% select(-Region)%>% t()
+T5.3.1[1:3,seq(1,11,2)] <- Import[[5]] %>% group_by(IDDIABAN) %>% summarise(across(any_of(var4.3),~min(.x,na.rm=T)),Region=head(Region)) %>% group_by(Region) %>% summarise(across(any_of(var4.3),~sum(.x==1,na.rm=T)/n())) %>% select(-Region) %>% t()
+
+rownames(T5.3.1) = c("Min 2 drys","Min 2 drys & 7 dry days","Min 2 drys & 10 dry days")
+T5.3.1[,1:12] <- round(T5.3.1[,1:12]*100,1)
+
+flextable(T5.3.1 %>% rownames_to_column(" "))  %>% delete_part(part = "header") %>% add_header_row(values = "AWD Proxy",colwidths = 13) %>% add_header_row(values = c("",rep(c("%EA","%Hh"),6)),colwidths = c(rep(1,13)))%>% add_header_row(values=c(" ","Red River Delta","Northern Midlands and Mountains","Northern and Coastal Central","Central Highlands","South East","Mekong River Delta"),colwidths = c(1,rep(2,6))) %>% fontsize(.,size=10) %>% set_table_properties(layout = "autofit")%>% fit_to_width(max_width = 11)
+```
+<!---BLOCK_LANDSCAPE_STOP--->
+
+
+

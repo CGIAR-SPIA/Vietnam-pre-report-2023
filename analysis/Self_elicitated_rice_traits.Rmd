@@ -1,0 +1,158 @@
+---
+date: "`r Sys.Date()`"
+title: "Preliminary Insights into the Adoption Agricultural Innovations in Vietnam - Self-Elicited Traits Analysis"
+author: "CGIAR SPIA, 2023"
+output: 
+  officedown::rdocx_document:
+    mapstyles:
+      Normal: ['First Paragraph']
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.cap = TRUE)
+
+library(officedown)
+library(officer)
+library(haven) 
+library(tidyverse) 
+library(sf) 
+library(flextable)
+library(curl)
+
+#po <- read_dta("D:/OneDrive - CGIAR/VHLSS22/SolieuHo_30.12.2022_SPIA/Ho_TTC_M4B11_season.dta") %>% as.data.frame()
+po <- read_dta(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Ho_TTC_M4B11_season.dta")) %>% as.data.frame()
+number <- function(i){as.numeric(as.character(unlist(i)))}
+
+#ID <- read_dta("D:/OneDrive - CGIAR/VHLSS22/SolieuHo_30.12.2022_SPIA/Ho_Muc4B11.dta") %>% select(IDHO) %>% unique()
+ID <- read_dta(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Ho_Muc4B11.dta")) %>% select(IDHO) %>% unique()
+region <- read.csv(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Provinces_IDs.csv"))
+names(region)[1]="MATINH"
+
+po$M4B113_C16[po$IDHO == "20561005009"]="01162"
+po$M4B113_C16[po$IDHO == "20561005011"]="00934"
+po$M4B113_C16[po$IDHO == "20458007015"]="00658"
+po$M4B113_C16[po$IDHO == "20561005005"]="00710"
+po$M4B113_C16[po$IDHO == "05191009009"]="00844"
+po$M4B113_C16[po$IDHO == "13990017013"]="00780"
+po$M4B113_C16[po$IDHO == "13483003011"]="00368"
+dup_code=c("20386004013","20386004015","21295017003","21295017009","23395004007","23539001001","23539001013","23539001015","29401018013","29497008005","30034007003","30034007009")
+po$M4B113_C16[po$IDHO %in% dup_code]=""
+po = po %>% mutate(Code_new=number(M4B113_C16)) 
+
+##Recode for 3 sets of genes
+QTL <- read.csv(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/QTL_markers.csv"))
+## Recode all genes
+QTL1=QTL
+for (i in 2:ncol(QTL1)) {
+  c0=grep("--",QTL1[,i])
+  c1=grep("+p",QTL1[,i])
+  QTL1[c0,i]=0;QTL1[c1,i]=1
+  cNA=which(!(QTL1[,i] %in% c(0,1)))
+  QTL1[cNA,i]=NA
+}
+## Recode combined genes for each traits
+attach(QTL1)
+QTL1$Drought=0
+cna=which(is.na(qDTY12.1)&is.na(qDTY1.1)&is.na(qDTY2.2)&is.na(qDTY3.1)&is.na(qDTY3.2)&is.na(qDTY4.1))
+c1d=which(qDTY12.1=="1"|qDTY1.1=="1"|qDTY2.2=="1"| qDTY3.1=="1"| qDTY3.2=="1"| qDTY4.1=="1")
+QTL1[cna,c("Drought")]=NA;QTL1[c1d,c("Drought")]=1
+QTL1$Salt=0
+cna=which(is.na(Saltol)&is.na(qSIS1L)&is.na(qSOR1))
+c1d=which(Saltol=="1"|qSIS1L=="1"|qSOR1=="1")
+QTL1[cna,c("Salt")]=NA;QTL1[c1d,c("Salt")]=1
+QTL1$Cold=0
+cna=which(is.na(COLD1)&is.na(qSCT1)&is.na(qCST10)&is.na(qPSST6))
+c1d=which(COLD1=="1"|qSCT1=="1"|qCST10=="1"|qPSST6=="1")
+QTL1[cna,c("Cold")]=NA;QTL1[c1d,c("Cold")]=1
+QTL1$Heat=0
+cna=which(is.na(TT1))
+c1d=which(TT1=="1")
+QTL1[cna,c("Heat")]=NA; QTL1[c1d,c("Heat")]=1
+
+
+QTL1$Drought1=0
+cna=which(is.na(qDTY12.1)&is.na(qDTY3.1)&is.na(qDTY3.2))
+c1d=which(qDTY12.1=="1"|qDTY3.1=="1"| qDTY3.2=="1")
+QTL1[cna,c("Drought1")]=NA; QTL1[c1d,c("Drought1")]=1
+QTL1$Cold1=0
+cna=which(is.na(is.na(qSCT1)&is.na(qCST10)))
+c1d=which(qSCT1=="1"|qCST10=="1")
+QTL1[cna,c("Cold1")]=NA; QTL1[c1d,c("Cold1")]=1
+
+
+QTL1[,2:(ncol(QTL1)-6)]=number(QTL1[,2:(ncol(QTL1)-6)])
+
+DNApoint=inner_join(po,QTL1,by=c("Code_new"="M4B113_C16")) %>% filter(!is.na(Code_new)&Code_new<=1250)
+DNApoint$MATINH=number(DNApoint$MATINH);DNApoint=left_join(DNApoint,region)
+
+detach(QTL1)
+```
+# Salinity-tolerance
+
+Based on Saltol gene:
+```{r Salt,echo=FALSE,message=FALSE}
+x.n=c("Region","True Positive","True Negative","False Positive","False Negative","N")
+x.var=c("Saltol","Salt","qSub1","Cold","Heat","Cold1","Drought1","Drought","qDTY12.1","qDTY3.2")
+y.var=c(rep("M4B113_C101",2),"M4B113_C102","M4B113_C105","M4B113_C104","M4B113_C105",rep("M4B113_C103",4))
+t=list()
+for (i in 1:length(x.var)) {
+  t[[i]] = matrix(NA,nrow = 6,ncol = 7) %>% as.data.frame()
+  n=nrow(DNApoint)-length(which(is.na(DNApoint[,x.var[[i]]])))
+  t[[i]][2,1]=round(sum(DNApoint[,y.var[[i]]]==1 & DNApoint[,x.var[[i]]]==1,na.rm = T)*100/n,2)
+  t[[i]][3,1]=round(sum(DNApoint[,y.var[[i]]]==2 & DNApoint[,x.var[[i]]]==0,na.rm = T)*100/n,2)
+  t[[i]][4,1]=round(sum(DNApoint[,y.var[[i]]]==1 & DNApoint[,x.var[[i]]]==0,na.rm = T)*100/n,2)
+  t[[i]][5,1]=round(sum(DNApoint[,y.var[[i]]]==2 & DNApoint[,x.var[[i]]]==1,na.rm = T)*100/n,2)
+  t[[i]][6,1]= n
+  t[[i]][,2:7]=DNApoint %>% group_by(Region) %>% summarise(tp=round(sum(.data[[y.var[[i]]]]==1 & .data[[x.var[[i]]]]==1,na.rm = T)*100/n(),2), tn=round(sum(.data[[y.var[[i]]]]==2 & .data[[x.var[[i]]]]==0,na.rm = T)*100/n(),2), fp=round(sum(.data[[y.var[[i]]]]==1 & .data[[x.var[[i]]]]==0,na.rm = T)*100/n(),2), fn=round(sum(.data[[y.var[[i]]]]==2 & .data[[x.var[[i]]]]==1,na.rm = T)*100/n(),2),n=n()) %>% as.data.frame() %>% t()
+  t[[i]][1,]=c("All","Red River Delta","Northern Moutainous","Central Coast","Central Highlands","South East","Mekong River Delta")
+  rownames(t[[i]])=x.n
+}
+flextable(t[[1]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+
+Based on Saltol, qSIS1L, qSOR1 genes
+```{r Salt2,echo=FALSE,message=FALSE}
+flextable(t[[2]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+
+# Submergence-tolerance
+Based on qSub1 gene:
+
+```{r Sub0,echo=FALSE,message=FALSE}
+flextable(t[[3]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+
+# Cold-tolerance
+Based on Cold1, qSCT1, qCST10, and qPSST6
+```{r Cold,echo=FALSE,message=FALSE}
+flextable(t[[4]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+Based on qSCT1, qCST10
+```{r Cold1,echo=FALSE,message=FALSE}
+flextable(t[[6]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+# Heat-tolerance
+Based on TT1
+```{r Heat,echo=FALSE,message=FALSE}
+flextable(t[[5]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+
+# Drought-tolerance
+Based on qDTY12.1, qDTY3.1, qDTY3.2:
+```{r Dro,echo=FALSE,message=FALSE}
+flextable(t[[7]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+Based on qDTY12.1 gene:
+```{r Dro1,echo=FALSE,message=FALSE}
+flextable(t[[9]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+
+Based on qDTY3.2 gene:
+```{r Dro2,echo=FALSE,message=FALSE}
+flextable(t[[10]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```
+
+Based on multiple drought genes:
+```{r Dro3,echo=FALSE,message=FALSE}
+flextable(t[[8]] %>% rownames_to_column()) %>% delete_part(part = "header") %>% set_table_properties(layout = "autofit")
+```

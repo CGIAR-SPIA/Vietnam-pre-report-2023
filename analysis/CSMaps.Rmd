@@ -1,0 +1,217 @@
+---
+date: "`r Sys.Date()`"
+title: "Preliminary Insights into the Adoption Agricultural Innovations in Vietnam - CS-Maps-Related Analysis"
+author: "CGIAR SPIA, 2023"
+output: 
+  officedown::rdocx_document:
+    mapstyles:
+      Normal: ['First Paragraph']
+  page_margins:
+    bottom: 0.75
+    top: 0.75
+    right: .5
+    left: .5
+    header: 0.5
+    footer: 0.5
+    gutter: 0
+---
+
+```{r setup, include=FALSE}
+
+# Check and install packages if not already installed
+required_packages <- c("sf","tidyverse","haven","readxl", "readr", "curl", "httr", "jsonlite", "lfe", "stargazer")
+
+missing_packages <- required_packages[!required_packages %in% installed.packages()]
+if (length(missing_packages) > 0) {
+  install.packages(missing_packages, dependencies = TRUE)
+}
+
+library(sf)
+library(tidyverse)
+library(haven)
+library(readxl)
+library(readr)
+library(curl)
+library(httr)
+library(jsonlite)
+library(lfe)
+library(stargazer)
+
+api_url <- "https://api.github.com/repos/CGIAR-SPIA/Vietnam-pre-report-2023/contents/datasets/"
+response <- GET(api_url)
+
+if (status_code(response) == 200) {
+  content_list <- content(response, as = "text")
+  content_list <- fromJSON(content_list)
+  
+  # Filter out only the file names with .dta extension
+  dta_files <- content_list$name[grepl("\\.dta$", content_list$name)]
+  
+  # Create a list to store .dta file contents
+  Import <- list()
+  
+  # Loop through .dta files and import as binary
+  for (dta_file in dta_files) {
+    dta_url <- paste0("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/", dta_file)
+    dta_response <- GET(dta_url)
+    
+    if (status_code(dta_response) == 200) {
+      dta_content <- content(dta_response, as = "raw")
+      Import[[dta_file]] <- haven::read_dta(dta_content)
+    } else {
+      cat("Error fetching .dta file content:", dta_file, "\n")
+    }
+  }
+  
+  # Print the list of .dta file contents
+  print(Import)
+} else {
+  cat("Error fetching folder content\n")
+}
+
+IDProv <- read.csv(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Provinces_IDs.csv"))
+names(IDProv)[1] = "MATINH"
+for (i in 1:5){Import[[i]] <- Import[[i]] %>% mutate(IDDIABAN=paste(MAXA,MADIABAN,sep = ""))}
+wg <- read_dta(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Weights/wt2022_SPIA.dta"))
+
+#Merge weight and region 
+number <- function(i){as.numeric(as.character(unlist(i)))}
+ma=c("MATINH","MAHUYEN","MAXA","MADIABAN")
+for (j in 1:4) {for (i in 1:5) {Import[[i]][,ma[[j]]] <- number(Import[[i]][,ma[[j]]])} }
+Import <- lapply(Import, left_join, IDProv, by="MATINH")
+names(wg)[1:5]=c("MATINH","MAHUYEN","MAXA","MADIABAN","KYDIEUTRA")
+Import=lapply(Import, function(x){left_join(x,wg) %>% filter(!is.na(wt45))})
+
+#Correct wrong barcode IDs
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005009"]="01162"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005011"]="00934"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20458007015"]="00658"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005005"]="00710"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "05191009009"]="00844"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "13990017013"]="00780"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "13483003011"]="00368"
+
+dup_code=c("20386004013","20386004015","21295017003","21295017009","23395004007","23539001001","23539001013","23539001015","29401018013","29497008005","30034007003","30034007009")
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO %in% dup_code]=""
+
+#Filter out test case
+ID <- Import[[1]] %>% group_by(IDHO) %>% summarise(IDHO=head(IDHO),wt45=head(wt45),MATINH=head(MATINH)) %>% unique()
+#Import[[5]]$M4B113_C16 <- as.numeric (Import[[5]]$M4B113_C16)
+ID0 <- Import[[5]]  %>% mutate(Code_new=number(M4B113_C16)) %>% filter(is.na(Code_new)& IDHO %in% ID$IDHO|Code_new<=1250) %>% select(IDHO,M4B113_C16) %>% unique()
+Import <- lapply(Import, function(x){x %>% filter(IDHO %in% ID0$IDHO)})
+```
+
+<!---BLOCK_LANDSCAPE_START--->
+```{r stat, include=FALSE,warning=FALSE,echo=FALSE,message=FALSE}
+#2.Statistics by provinces
+
+#2.1. CS-MAP
+Import[[2]]$ONE.SEA <- ifelse(Import[[2]]$M4B111_C41==1|Import[[2]]$M4B111_C42==1|Import[[2]]$M4B111_C43==1|Import[[2]]$M4B111_C44==1,1,2)
+T <- list()
+for (i in 1:6) {
+  T[[i]] <- Import[[2]] %>% filter(M4B111A_MA==i) %>% group_by(MATINH) %>% summarise(sum(M4B111_C2[M4B111_C2==1]*wt45[M4B111_C2==1],na.rm = T)/sum(wt45))
+  names(T[[i]]) <- c("MATINH",paste("CS0",i,sep = ""))}
+T20 <- Reduce(left_join,T)
+
+for (i in 1:6) {
+  T[[i]] <- Import[[2]] %>% filter(M4B111A_MA==i) %>% group_by(MATINH) %>% summarise(sum(ONE.SEA[ONE.SEA==1]*wt45[ONE.SEA==1],na.rm = T)/sum(wt45))
+  names(T[[i]]) <- c("MATINH",paste("CS",i,sep = ""))}
+T[[2]] <- Import[[2]] %>% filter(M4B111A_MA==2) %>% group_by(MATINH) %>% summarise(CS2=sum(M4B111_C3[M4B111_C3==1]*wt45[M4B111_C3==1],na.rm = T)/sum(wt45))
+T2 <- Reduce(left_join,T); rm(T)
+T2[,2:7] <- T2[,2:7]*100;T20[,2:7] <- T20[,2:7]*100;
+T21<- T20; T21[,2:7] <- T2[,2:7]*100/T20[,2:7]; 
+n.21 <- c("CS11","CS12","CS13","CS14","CS15","CS16"); names(T21)[2:7] <- n.21 
+
+
+
+#3.Read modified_maps
+map <- st_read("/vsicurl/https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Shape_file/Shape_file/Province_with_Islands.shp")
+map$MATINH <- 0
+map$Region <- ""
+t <- rep(NA,65)
+for (i in 1:length(map$ADM1_EN)) {
+  t[[i]] <- ifelse(grep(gsub('( -)','',gsub('( city)','',map$ADM1_EN[[i]])),
+                        IDProv$Province_name) %>% length()==0,0,
+                   grep(gsub('( -)','',gsub('( city)','',map$ADM1_EN[[i]])),
+                        IDProv$Province_name))
+  map$MATINH[[i]] <- ifelse(t[[i]]==0,NA,IDProv$MATINH[[t[[i]]]])
+  map$Region[[i]] <- ifelse(t[[i]]==0,NA,IDProv$Region[[t[[i]]]])}
+map %>% head() %>% print(width = 120) %>% colnames()
+TS <- map %>% filter(ADM1_VI=="Truong Sa") %>% st_geometry()
+cnTS = st_centroid(TS)
+TS_m = (TS-cnTS) * .25 + cnTS + c(-5,0)
+HS <- map %>% filter(ADM1_VI=="Hoang Sa") %>% st_geometry()
+cnHS = st_centroid(HS)
+HS_m =  (HS-cnHS) *.25 + cnHS + c(-2.5,0)
+modified_map <- map %>% filter(!(ADM1_VI %in% c("Truong Sa","Hoang Sa")))
+crs <- st_crs(modified_map)
+TS_map <- map %>% filter(ADM1_VI=="Truong Sa") %>% st_set_geometry(TS_m) %>% st_set_crs(crs)
+HS_map <- map %>% filter(ADM1_VI=="Hoang Sa") %>% st_set_geometry(HS_m) %>% st_set_crs(crs)
+modified_map <- rbind(modified_map,TS_map,HS_map)
+```
+
+**1. Climate-Smart Maps and Adaptation Plans by Provinces**
+
+
+```{r csmap,echo=FALSE,fig.asp = 0.8, fig.width = 9, out.width = "100%"}
+#4.2 CS-MAP
+library(ggplot2);library(ggpubr)
+modified_map <- modified_map %>% left_join(T2,by="MATINH")
+modified_map <- modified_map %>% left_join(T20,by="MATINH")
+modified_map <- modified_map %>% left_join(T21,by="MATINH")
+
+n.2 <- c("CS1","CS2","CS3","CS4","CS5","CS6")
+n.20 <- c("CS01","CS02","CS03","CS04","CS05","CS06")
+t.2 <- c("Not cultivating rice ","Shifting from rice to another crop","Change in rice sowing/transplanting dates","Rice varieties to sow","Shifting to shorter duration rice varieties","Changes in plot irrigation schedule")
+
+M.CS <- list()
+for(i in 1:6) {
+  M.CS[[i]] <- modified_map %>% ggplot() + aes(fill=.data[[n.2[i]]])+geom_sf() + 
+    scale_fill_gradientn(colors = c("#D21404","#FADE00", "#006D5B"),limits = c(0, 100),breaks = c(0,20,40,60,80,100),name=" ") + labs(caption = "Applied",x=NULL,y=NULL) +
+    geom_rect(aes(xmin = 107.5, xmax = 110, ymin = 8.5, ymax = 10), linewidth = 0.1, color = "black", fill = NA) + geom_rect(aes(xmin = 109.3, xmax = 110, ymin = 16.1, ymax = 16.7), linewidth = 0.1, color = "black", fill = NA) + theme(axis.text.x=element_blank(),axis.text.y=element_blank(),legend.title=element_blank())}
+
+M.CS0 <- list()
+for(i in 1:6) {
+  M.CS0[[i]] <- modified_map %>% ggplot() + aes(fill=.data[[n.20[i]]])+geom_sf() + 
+    scale_fill_gradientn(colors = c("#D21404","#FADE00", "#006D5B"),limits = c(0, 100),breaks = c(0,20,40,60,80,100),name=" ") + labs(caption = "Heard",x=NULL,y=NULL) +
+    geom_rect(aes(xmin = 107.5, xmax = 110, ymin = 8.5, ymax = 10), linewidth = 0.1, color = "black", fill = NA) + geom_rect(aes(xmin = 109.3, xmax = 110, ymin = 16.1, ymax = 16.7), linewidth = 0.1, color = "black", fill = NA) + theme(axis.text.x=element_blank(),axis.text.y=element_blank(),legend.title=element_blank())}
+
+M.CS1 <- list()
+for (i in 1:6) {
+  M.CS1[[i]] <- modified_map %>% ggplot() + aes(fill=.data[[n.21[i]]])+geom_sf() + 
+    scale_fill_gradientn(colors = c("#D21404","#FADE00", "#006D5B"),limits = c(0, 100),breaks = c(0,20,40,60,80,100),name=" ") + labs(caption = "Percentage applied/heard", x=NULL,y=NULL) + geom_rect(aes(xmin = 107.5, xmax = 110, ymin = 8.5, ymax = 10), linewidth = 0.1, color = "black", fill = NA) + geom_rect(aes(xmin = 109.3, xmax = 110, ymin = 16.1, ymax = 16.7), linewidth = 0.1, color = "black", fill = NA) + theme(axis.text.x=element_blank(),axis.text.y=element_blank(),legend.title=element_blank())
+}
+pcs <- list()
+for (i in 1:6) {
+pcs[[i]] <- ggarrange(M.CS0[[i]],M.CS1[[i]],M.CS[[i]],nrow=1,ncol=3,common.legend = T ) %>% annotate_figure(top = text_grob(t.2[[i]], color = "black", face = "bold", size = 10))  
+}
+pcs[[1]];pcs[[2]];pcs[[3]];pcs[[4]];pcs[[5]];pcs[[6]]
+
+```
+
+```{r CSdata, include=FALSE, echo=FALSE,message=FALSE,warning=FALSE}
+sow=Import[[2]] %>% filter(M4B111A_MA==3) %>% select(MATINH,MAHUYEN,MAXA,IDDIABAN,IDHO,M4B111A_MA,M4B111_C2,M4B111_C3,ONE.SEA,CSMAP,Region,wt45) %>% mutate(ONE.SEA.r=case_when(ONE.SEA==1~1,is.na(ONE.SEA)~0,TRUE~0))
+sow$M4B111_C2[sow$M4B111_C2==2]=0
+sow$CSMAP[is.na(sow$CSMAP)]=0
+
+variety=Import[[2]] %>% filter(M4B111A_MA==4) %>% select(MATINH,MAHUYEN,MAXA,IDDIABAN,IDHO,M4B111A_MA,M4B111_C2,M4B111_C3,ONE.SEA,CSMAP,Region,wt45) %>% mutate(ONE.SEA.r=case_when(ONE.SEA==1~1,is.na(ONE.SEA)~0,TRUE~0))
+variety$M4B111_C2[variety$M4B111_C2==2]=0
+variety$CSMAP[is.na(variety$CSMAP)]=0
+```
+<!---BLOCK_LANDSCAPE_STOP--->
+1. Receive recommendations:
+```{r r1, echo=FALSE,message=FALSE,warning=FALSE}
+sow1=felm(M4B111_C2~CSMAP|0|0|MATINH,data=sow)
+var1=felm(M4B111_C2~CSMAP|0|0|MATINH,data=variety) 
+stargazer(sow1,var1,type="text", align=TRUE, dep.var.labels = c("Received Rec"), column.labels =  c("Sowing/Trans. Schedule","Varieties to Sow"),covariate.labels=c("In provinces with CSMAP"),omit.stat=c("n","LL","ser","f"), no.space=TRUE)
+```
+*Standard-Errors are clustered at the provincial level*
+
+2. Apply recommendations:
+
+```{r r2, echo=FALSE,message=FALSE,warning=FALSE}
+sow2=felm(ONE.SEA.r~CSMAP|0|0|MATINH,data=sow)  
+var2=felm(ONE.SEA.r~CSMAP|0|0|MATINH,data=variety) 
+stargazer(sow2,var2,type="text", align=TRUE, dep.var.labels = c("Applied Rec"), column.labels =  c("Sowing/Trans. Schedule","Varieties to Sow"),covariate.labels=c("In provinces with CSMAP"),omit.stat=c("n","LL","ser","f"), no.space=TRUE)
+```
+*Standard-Errors are clustered at the provincial level*

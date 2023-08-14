@@ -1,0 +1,173 @@
+---
+date: "`r Sys.Date()`"
+title: "Preliminary Insights into the Adoption of Agricultural Innovations in Vietnam - Crop Germplasms and QTL-Related Analysis"
+author: "CGIAR SPIA, 2023"
+output: 
+  officedown::rdocx_document:
+    mapstyles:
+      Normal: ['First Paragraph']
+  page_margins:
+    bottom: 0.75
+    top: 0.75
+    right: .5
+    left: .5
+    header: 0.5
+    footer: 0.5
+    gutter: 0
+---
+```{r setup, include=FALSE}
+
+library(sf)
+library(tidyverse)
+library(haven)
+
+library(readxl)
+library(readr)
+library(curl)
+library(httr)
+library(jsonlite)
+
+# Access the CGIAR-SPIA repository and download VHLSS 2022 data integrations
+api_url <- "https://api.github.com/repos/CGIAR-SPIA/Vietnam-pre-report-2023/contents/datasets/"
+response <- GET(api_url)
+
+if (status_code(response) == 200) {
+  content_list <- content(response, as = "text")
+  content_list <- fromJSON(content_list)
+  
+  # Filter out only the file names with .dta extension
+  dta_files <- content_list$name[grepl("\\.dta$", content_list$name)]
+  
+  # Create a list to store .dta file contents
+  Import <- list()
+  
+  # Loop through .dta files and import as binary
+  for (dta_file in dta_files) {
+    dta_url <- paste0("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/", dta_file)
+    dta_response <- GET(dta_url)
+    
+    if (status_code(dta_response) == 200) {
+      dta_content <- content(dta_response, as = "raw")
+      Import[[dta_file]] <- haven::read_dta(dta_content)
+    } else {
+      cat("Error fetching .dta file content:", dta_file, "\n")
+    }
+  }
+  
+  # Print the list of .dta file contents
+  print(Import)
+} else {
+  cat("Error fetching folder content\n")
+}
+
+IDProv <- read.csv(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Provinces_IDs.csv"))
+names(IDProv)[1] = "MATINH"
+for (i in 1:5){Import[[i]] <- Import[[i]] %>% mutate(IDDIABAN=paste(MAXA,MADIABAN,sep = ""))}
+
+
+number <- function(i){as.numeric(as.character(unlist(i)))}
+ma=c("MATINH","MAHUYEN","MAXA","MADIABAN")
+for (j in 1:4) {for (i in 1:5) {Import[[i]][,ma[[j]]] <- number(Import[[i]][,ma[[j]]])} }
+Import <- lapply(Import, left_join,IDProv,by="MATINH")
+#Correct wrong sample ID
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005009"]="01162"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005011"]="00934"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20458007015"]="00658"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "20561005005"]="00710"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "05191009009"]="00844"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "13990017013"]="00780"
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO == "13483003011"]="00368"
+#Drop hh with duplicated barcodes
+dup_code=c("20386004013","20386004015","21295017003","21295017009","23395004007","23539001001","23539001013","23539001015","29401018013","29497008005","30034007003","30034007009")
+Import[[5]]$M4B113_C16[Import[[5]]$IDHO %in% dup_code]=""
+#Filter test case
+ID <- Import[[1]] %>% group_by(IDHO) %>% summarise(IDHO=head(IDHO)) %>% unique()
+ID0 <- Import[[5]]  %>% mutate(Code_new=number(M4B113_C16)) %>% filter(is.na(Code_new)& IDHO %in% ID$IDHO|Code_new<=1250) %>% select(IDHO,M4B113_C16) %>% unique()
+Import <- lapply(Import, function(x){x %>% filter(IDHO %in% ID0$IDHO)})
+
+QTL1 <- read.csv(curl("https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/QTL_markers.csv"))
+for (i in 2:ncol(QTL1)) {
+  c0=grep("[-]",QTL1[,i])
+  c1=grep("[+]",QTL1[,i])
+  QTL1[c0,i]=0;QTL1[c1,i]=1
+  cNA=which(!(QTL1[,i] %in% c(0,1)))
+  QTL1[cNA,i]=NA}
+QTL1[,2:ncol(QTL1)]=number(QTL1[,2:ncol(QTL1)])
+
+recode.gene=function(y){
+  tg=rowSums(QTL1[,y],na.rm = T)*ifelse(rowSums(is.na(QTL1[,y])) == ncol(QTL1[,y]), NA, 1)
+  tg[tg>1]=1
+  return(tg)}
+attach(QTL1)
+QTL1[,2:ncol(QTL1)]=number(QTL1[,2:ncol(QTL1)])
+QTL1=QTL1[,colSums(QTL1,na.rm = T) >0]
+
+CG= inner_join(Import[[5]] %>% mutate(Code_new=number(M4B113_C16)),QTL1,by=c("Code_new"="M4B113_C16")) %>% filter(!is.na(Code_new)&Code_new<=1250)
+```
+
+```{r map, include=FALSE,warning=FALSE,echo=FALSE,message=FALSE}
+
+map <- st_read("/vsicurl/https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/datasets/Shape_file/Shape_file/Province_with_Islands.shp")
+
+map$MATINH <- 0
+map$Region <- ""
+t <- rep(NA,65)
+for (i in 1:length(map$ADM1_EN)) {
+  t[[i]] <- ifelse(grep(gsub('( -)','',gsub('( city)','',map$ADM1_EN[[i]])),
+                        IDProv$Province_name) %>% length()==0,0,
+                   grep(gsub('( -)','',gsub('( city)','',map$ADM1_EN[[i]])),
+                        IDProv$Province_name))
+  map$MATINH[[i]] <- ifelse(t[[i]]==0,NA,IDProv$MATINH[[t[[i]]]])
+  map$Region[[i]] <- ifelse(t[[i]]==0,NA,IDProv$Region[[t[[i]]]])}
+map %>% head() %>% print(width = 120) %>% colnames()
+TS <- map %>% filter(ADM1_VI=="Truong Sa") %>% st_geometry()
+cnTS = st_centroid(TS)
+TS_m = (TS-cnTS) * .25 + cnTS + c(-5,0)
+HS <- map %>% filter(ADM1_VI=="Hoang Sa") %>% st_geometry()
+cnHS = st_centroid(HS)
+HS_m =  (HS-cnHS) *.25 + cnHS + c(-2.5,0)
+modified_map <- map %>% filter(!(ADM1_VI %in% c("Truong Sa","Hoang Sa")))
+crs <- st_crs(modified_map)
+TS_map <- map %>% filter(ADM1_VI=="Truong Sa") %>% st_set_geometry(TS_m) %>% st_set_crs(crs)
+HS_map <- map %>% filter(ADM1_VI=="Hoang Sa") %>% st_set_geometry(HS_m) %>% st_set_crs(crs)
+modified_map <- rbind(modified_map,TS_map,HS_map)
+rm(TS,TS_m,TS_map,HS,HS_m,HS_map,cnHS,cnTS,crs)
+
+```
+
+```{r csmap,echo=FALSE,fig.asp = 0.8, fig.width = 9, out.width = "100%"}
+#4.2 Crop germ
+var41=names(QTL1)[2:ncol(QTL1)]
+Tab1 = CG %>% group_by(MATINH) %>% summarise(across(any_of(var41),~sum(.x==1,na.rm = T)/n()))
+Tab1[,2:ncol(Tab1)] <- Tab1[,2:ncol(Tab1)]*100
+modified_map <- modified_map %>% left_join(Tab1,by="MATINH")
+M.CG <- list()
+for(i in 1:length(var41)) {
+  M.CG[[i]] <- modified_map %>% ggplot() + aes(fill=.data[[var41[i]]])+geom_sf() + scale_fill_gradient2(midpoint = 50, low = "#D21404", mid = "#FADE00", high = "#006D5B",na.value="white", space = "Lab", name="Percent") +  ggtitle(var41[[i]]) +
+  geom_rect(aes(xmin = 107.5, xmax = 110, ymin = 8.5, ymax = 10), linewidth = 0.1, color = "black", fill = NA) +
+  geom_rect(aes(xmin = 109.3, xmax = 110, ymin = 16.1, ymax = 16.7), linewidth = 0.1, color = "black", fill = NA)+ theme(axis.text.x=element_blank(),axis.text.y=element_blank())
+}
+
+pdf("Rice-QTLs-by-province.pdf")
+for (i in 1:(ncol(QTL1)-1)) {
+    print(M.CG[[i]])
+}
+dev.off()
+```
+
+
+```{r csmap1,echo=FALSE,fig.asp = 0.8, fig.width = 8, out.width = "100%"}
+var42=c("qCST10","qSCT1","qDTY12.1","qDTY3.1","qDTY3.2","Dro1","Saltol","qSub1")
+names42=c(rep("Cold-seedling tolerance",2),rep("Drought-reproductive tolerance",3),"Drought-vegetative","Salinity-vegetative","Submergence")
+M.G.sub=list()
+for(i in 1:length(var42)) {
+  M.G.sub[[i]] <- modified_map %>% ggplot() + aes(fill=.data[[var42[i]]])+geom_sf() + scale_fill_gradient2(midpoint = 50, low = "#D21404", mid = "#FADE00", high = "#006D5B",na.value="white", space = "Lab", name="Percent") +  ggtitle(paste(var42[[i]],"for",names42[[i]],sep = " ")) +
+  geom_rect(aes(xmin = 107.5, xmax = 110, ymin = 8.5, ymax = 10), linewidth = 0.1, color = "black", fill = NA) +
+  geom_rect(aes(xmin = 109.3, xmax = 110, ymin = 16.1, ymax = 16.7), linewidth = 0.1, color = "black", fill = NA)+ theme(axis.text.x=element_blank(),axis.text.y=element_blank())}
+for (i in 1:length(var42)) {
+  print(paste(var42[[i]],names42[[i]],sep = " "))
+  print(M.G.sub[[i]])}
+```
+
+
+
