@@ -13,7 +13,7 @@ The report results can be reproduced by downloading the [analysis directory](htt
    
 3. Training material (VHLSS 2023): The training presentation is named [VHLSS_23_training (VN)](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/training/VHLSS_23_training_(VN).pdf). Additionally, [Training_Cassava_DNA.pdf](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/training/Training_Cassava_DNA.pdf) explain the Cassava sampling procedure to enumerator during the VHLSS 2023 training. These materials are valuable resources for researchers and practitioners involved in agricultural sampling.
    
-4. Pilot Testing of the 1M5R Module: The [Pilot testing of the 1M5R module](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/Pilot_testing_1M5R.html) file contains descriptive results from the pilot testing of the 1M5R (One Must Do, Five Reductions) instruments integrated into the VHLSS 2023. This valuable information sheds light on the methodological challenges for collecting data on Sustainable Intensification practices.
+4. Pilot Testing of the 1M5R Module: The [Pilot testing of the 1M5R module](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/Pilot_testing_1M5R.html) file contains descriptive results from the pilot testing of the 1M5R (One Must Do, Five Reductions) instruments integrated into the VHLSS 2023. This valuable information sheds light on the methodological challenges for collecting data on Sustainable Intensification practices.
    
 5. Variable Dictionary: The [VHLSS 22 variables](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/VHLSS22_variables.docx) document provides a detailed dictionary of variables used in the analysis. It explains the meaning and context of each variable, enhancing the transparency of the research.
    
@@ -21,9 +21,9 @@ The report results can be reproduced by downloading the [analysis directory](htt
     
 7. Analysis: The [analysis directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/analysis) contains R markdown documents used to generate the tables and figures presented in the report. These documents are well-documented and can be easily executed to reproduce the visualizations in the report.
    
-[VH22_Core_Results.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/VH22_Core_Results.Rmd) reproduce the report core results. It outputs Table 4 Report.xls and VHLSS22_Analysis.doc
+[VH22_Core_Results.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/VH22_Core_Results.Rmd) reproduce the report core results. It outputs Table 4 Report.xls and VHLSS22_Analysis.docx
 
-[Rice_QTLs.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/Rice_QTLs.Rmd) generates province-level maps of QTL distribution (Rice-QTLs-by-province.pdf). It also generates the maps used in the report (Province_Markers_Maps.doc)
+[Rice_QTLs.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/Rice_QTLs.Rmd) generates province-level maps of QTL distribution (Rice-QTLs-by-province.pdf). It also generates the maps used in the report (Province_Markers_Maps.docx)
 
 [Self_elicitated_rice_traits.Rmd](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/Self_elicitated_rice_traits.Rmd) reproduced the analysis comparing farmer's elicited traits with rice QTL markers (Self_elicitated_rice_traits.docx).
 
