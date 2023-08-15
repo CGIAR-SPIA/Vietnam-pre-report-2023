@@ -15,7 +15,7 @@ The report results can be reproduced by downloading the [analysis directory](htt
    
 4. Pilot Testing of the 1M5R Module: The [Pilot testing of the 1M5R module](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/Pilot_testing_1M5R.html) file contains descriptive results from the pilot testing of the 1M5R (One Must Do, Five Reductions) instruments integrated into the VHLSS 2023. This valuable information sheds light on the methodological challenges for collecting data on Sustainable Intensification practices.
    
-5. Variable Dictionary: The [VHLSS 22 variables](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/VHLSS_22_variables.doc) document provides a detailed dictionary of variables used in the analysis. It explains the meaning and context of each variable, enhancing the transparency of the research.
+5. Variable Dictionary: The [VHLSS 22 variables](https://raw.githubusercontent.com/CGIAR-SPIA/Vietnam-pre-report-2023/main/analysis/VHLSS22_variables.docx) document provides a detailed dictionary of variables used in the analysis. It explains the meaning and context of each variable, enhancing the transparency of the research.
    
 6. Datasets: The repository includes several datasets used for the analysis. These datasets relate VHLSS 2022 new data inclusions, shapefiles, rice QTL data, and weights. Modules are available in the published report in Appendix C. Dataset were anonymized and are available in the [datasets directory](https://github.com/CGIAR-SPIA/Vietnam-pre-report-2023/tree/main/datasets).
     
